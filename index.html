@@ -18,19 +18,25 @@
 
   <style>
     :root {
-      --bg: #0b0f19;
-      --panel: #111827;
-      --panel2: #0f172a;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --border: #1f2937;
-      --btn: #2563eb;
-      --btn2: #334155;
+        --bg: #0b0f19;
+        --panel: #111827;
+        --panel2: #0f172a;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --border: #1f2937;
+        --btn: #2563eb;
+        --btn2: #334155;
 
-      /* The “Reddit-ish inline code” pill */
-      --pill-bg: #f6f7f8;
-      --pill-fg: #1a1a1a;
-      --pill-radius: 6px;
+        /* The “Reddit-ish inline code” pill */
+        --pill-bg: #f6f7f8;
+        --pill-fg: #1a1a1a;
+        --pill-radius: 8px;
+        
+        --pill-bg-light: #f6f7f8;
+        --pill-fg-light: #1a1a1a;
+
+        --pill-bg-dark: #0f172a;
+        --pill-fg-dark: #e5e7eb;
     }
 
     * { box-sizing: border-box; }
@@ -182,28 +188,39 @@
 
     /* The pill itself */
     #pill {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
       background: var(--pill-bg);
       color: var(--pill-fg);
       border-radius: var(--pill-radius);
-      padding: 2px 4px; /* will be overridden by sliders */
+
+      padding: 2px 4px; /* still controlled by JS */
       font-family: Consolas, "Cascadia Mono", Menlo, Monaco, monospace;
-      font-size: 18px; /* overridden */
+      font-size: 18px;
       line-height: 1.15;
+
       white-space: pre;
+      width: fit-content;
+      max-width: max-content;
     }
 
+
     /* Make highlight.js not add its own background */
-    #pill pre, #pill code {
+    #pill pre,
+    #pill code {
+      display: inline;
       margin: 0;
       padding: 0;
       background: transparent !important;
+
       white-space: pre;
       font-family: inherit;
       font-size: inherit;
       line-height: inherit;
-      display: inline;
     }
+
 
     /* Small screen control layout */
     @media (max-width: 820px) {
@@ -251,8 +268,17 @@
 
         <div>
           <label for="radius">Radius</label>
-          <input id="radius" type="number" min="0" max="20" value="6">
+          <input id="radius" type="number" min="0" max="20" value="8">
         </div>
+          
+        <div>
+          <label for="theme">Output theme</label>
+          <select id="theme">
+            <option value="light" selected>Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+
       </div>
 
       <textarea id="code" spellcheck="false" placeholder='e.g. print("Hello there!")'></textarea>
@@ -297,7 +323,21 @@
       downloadBtn: document.getElementById("downloadBtn"),
       clearBtn: document.getElementById("clearBtn"),
       status: document.getElementById("status"),
+        
+      theme: document.getElementById("theme"),
     };
+      
+    function applyOutputTheme() {
+      const t = els.theme.value;
+      if (t === "dark") {
+        document.documentElement.style.setProperty("--pill-bg", getComputedStyle(document.documentElement).getPropertyValue("--pill-bg-dark"));
+        document.documentElement.style.setProperty("--pill-fg", getComputedStyle(document.documentElement).getPropertyValue("--pill-fg-dark"));
+      } else {
+        document.documentElement.style.setProperty("--pill-bg", getComputedStyle(document.documentElement).getPropertyValue("--pill-bg-light"));
+        document.documentElement.style.setProperty("--pill-fg", getComputedStyle(document.documentElement).getPropertyValue("--pill-fg-light"));
+      }
+    }
+
 
     function setStatus(kind, msg) {
       const dot = els.status.querySelector(".dot");
@@ -324,6 +364,7 @@
     }
 
     function renderPreview() {
+      applyOutputTheme();
       applyPillStyle();
       const text = els.code.value ?? "";
       const mode = els.lang.value;
@@ -347,6 +388,7 @@
         const result = hljs.highlight(text, { language: hljsLang, ignoreIllegals: true });
         els.pillCode.className = "hljs";
         els.pillCode.innerHTML = result.value; // already escaped by highlight.js
+
       } catch {
         // fallback to plain if something weird happens
         els.pillCode.className = "";
@@ -355,15 +397,15 @@
     }
 
     async function pillToPngBlob() {
-      // Use html-to-image to capture only the pill (tight crop)
-      // NOTE: It inlines computed styles; highlight.js classes come through.
       const blob = await htmlToImage.toBlob(els.pill, {
-        pixelRatio: 2, // sharper text
-        backgroundColor: null // transparent around pill; pill itself has bg
+        pixelRatio: 2,
+        backgroundColor: null  // <-- this is the correct “transparent outside” setting
       });
       if (!blob) throw new Error("Failed to generate PNG.");
       return blob;
     }
+
+
 
     async function copyImageToClipboard(blob) {
       // Clipboard image API (works on Chrome/Edge over HTTPS with user gesture)
@@ -393,6 +435,7 @@
       els.padY.addEventListener(evt, renderPreview);
       els.radius.addEventListener(evt, renderPreview);
       els.code.addEventListener(evt, renderPreview);
+      els.theme.addEventListener("change", renderPreview);
     });
 
     els.clearBtn.addEventListener("click", () => {

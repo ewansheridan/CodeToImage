@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Code → Clipboard Image</title>
+
+  <!-- Highlight.js (syntax highlighting) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/c.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/java.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/xml.min.js"></script> <!-- HTML -->
+
+  <!-- DOM → PNG -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --panel: #111827;
+      --panel2: #0f172a;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2937;
+      --btn: #2563eb;
+      --btn2: #334155;
+
+      /* The “Reddit-ish inline code” pill */
+      --pill-bg: #f6f7f8;
+      --pill-fg: #1a1a1a;
+      --pill-radius: 6px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% 10%, #14213d 0%, var(--bg) 50%, #060812 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 16px 36px;
+    }
+
+    .header {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0;
+      letter-spacing: 0.2px;
+      font-weight: 650;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 10px 35px rgba(0,0,0,0.25);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 10px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text);
+      outline: none;
+    }
+
+    textarea {
+      width: 100%;
+      height: 140px;
+      resize: vertical;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.45);
+      color: var(--text);
+      font-family: Consolas, "Cascadia Mono", Menlo, Monaco, monospace;
+      font-size: 14px;
+      outline: none;
+      line-height: 1.35;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 10px;
+      justify-content: space-between;
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .05s ease, opacity .15s ease;
+    }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .primary { background: var(--btn); }
+    .secondary { background: var(--btn2); }
+    .ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #6b7280;
+      display: inline-block;
+    }
+    .dot.ok { background: #22c55e; }
+    .dot.bad { background: #ef4444; }
+    .dot.busy { background: #f59e0b; }
+
+    /* --- Render target (what becomes the PNG) --- */
+    .render-wrap {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.15);
+    }
+
+    /* The pill itself */
+    #pill {
+      display: inline-block;
+      background: var(--pill-bg);
+      color: var(--pill-fg);
+      border-radius: var(--pill-radius);
+      padding: 2px 4px; /* will be overridden by sliders */
+      font-family: Consolas, "Cascadia Mono", Menlo, Monaco, monospace;
+      font-size: 18px; /* overridden */
+      line-height: 1.15;
+      white-space: pre;
+    }
+
+    /* Make highlight.js not add its own background */
+    #pill pre, #pill code {
+      margin: 0;
+      padding: 0;
+      background: transparent !important;
+      white-space: pre;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      display: inline;
+    }
+
+    /* Small screen control layout */
+    @media (max-width: 820px) {
+      .controls { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>Code → Clipboard Image</h1>
+        <p class="hint">Paste code, choose language, click Copy. If clipboard copy is blocked, use Download PNG.</p>
+      </div>
+      <div class="hint">Client-side only (GitHub Pages friendly)</div>
+    </div>
+
+    <div class="card">
+      <div class="controls">
+        <div>
+          <label for="lang">Language</label>
+          <select id="lang">
+            <option value="plain">Plain</option>
+            <option value="python">Python</option>
+            <option value="c">C</option>
+            <option value="java">Java</option>
+            <option value="html">HTML</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="fontSize">Font size</label>
+          <input id="fontSize" type="number" min="10" max="40" value="18">
+        </div>
+
+        <div>
+          <label for="padX">Pad X</label>
+          <input id="padX" type="number" min="0" max="20" value="4">
+        </div>
+
+        <div>
+          <label for="padY">Pad Y</label>
+          <input id="padY" type="number" min="0" max="20" value="2">
+        </div>
+
+        <div>
+          <label for="radius">Radius</label>
+          <input id="radius" type="number" min="0" max="20" value="6">
+        </div>
+      </div>
+
+      <textarea id="code" spellcheck="false" placeholder='e.g. print("Hello there!")'></textarea>
+
+      <div class="actions">
+        <div class="btns">
+          <button class="primary" id="copyBtn">Copy image</button>
+          <button class="secondary" id="downloadBtn">Download PNG</button>
+          <button class="ghost" id="clearBtn">Clear</button>
+        </div>
+        <div class="status" id="status"><span class="dot"></span><span>Ready.</span></div>
+      </div>
+
+      <div class="render-wrap">
+        <div id="pill">
+          <code id="pillCode"></code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Map dropdown -> highlight.js language name
+    const LANG_TO_HLJS = {
+      plain: null,
+      python: "python",
+      c: "c",
+      java: "java",
+      html: "xml" // highlight.js uses "xml" lexer for HTML in many builds
+    };
+
+    const els = {
+      lang: document.getElementById("lang"),
+      fontSize: document.getElementById("fontSize"),
+      padX: document.getElementById("padX"),
+      padY: document.getElementById("padY"),
+      radius: document.getElementById("radius"),
+      code: document.getElementById("code"),
+      pill: document.getElementById("pill"),
+      pillCode: document.getElementById("pillCode"),
+      copyBtn: document.getElementById("copyBtn"),
+      downloadBtn: document.getElementById("downloadBtn"),
+      clearBtn: document.getElementById("clearBtn"),
+      status: document.getElementById("status"),
+    };
+
+    function setStatus(kind, msg) {
+      const dot = els.status.querySelector(".dot");
+      dot.className = "dot " + (kind || "");
+      els.status.querySelector("span:last-child").textContent = msg;
+    }
+
+    function applyPillStyle() {
+      const fs = Number(els.fontSize.value || 18);
+      const px = Number(els.padX.value || 0);
+      const py = Number(els.padY.value || 0);
+      const r = Number(els.radius.value || 0);
+
+      els.pill.style.fontSize = fs + "px";
+      els.pill.style.padding = `${py}px ${px}px`;
+      els.pill.style.borderRadius = r + "px";
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function renderPreview() {
+      applyPillStyle();
+      const text = els.code.value ?? "";
+      const mode = els.lang.value;
+      const hljsLang = LANG_TO_HLJS[mode];
+
+      if (!text) {
+        els.pillCode.className = "";
+        els.pillCode.textContent = "";
+        return;
+      }
+
+      if (!hljsLang) {
+        // Plain: no highlighting, just text
+        els.pillCode.className = "";
+        els.pillCode.textContent = text;
+        return;
+      }
+
+      // Highlighted: set HTML produced by highlight.js
+      try {
+        const result = hljs.highlight(text, { language: hljsLang, ignoreIllegals: true });
+        els.pillCode.className = "hljs";
+        els.pillCode.innerHTML = result.value; // already escaped by highlight.js
+      } catch {
+        // fallback to plain if something weird happens
+        els.pillCode.className = "";
+        els.pillCode.textContent = text;
+      }
+    }
+
+    async function pillToPngBlob() {
+      // Use html-to-image to capture only the pill (tight crop)
+      // NOTE: It inlines computed styles; highlight.js classes come through.
+      const blob = await htmlToImage.toBlob(els.pill, {
+        pixelRatio: 2, // sharper text
+        backgroundColor: null // transparent around pill; pill itself has bg
+      });
+      if (!blob) throw new Error("Failed to generate PNG.");
+      return blob;
+    }
+
+    async function copyImageToClipboard(blob) {
+      // Clipboard image API (works on Chrome/Edge over HTTPS with user gesture)
+      if (!navigator.clipboard || !window.ClipboardItem) {
+        throw new Error("Clipboard image copy not supported in this browser.");
+      }
+      const item = new ClipboardItem({ "image/png": blob });
+      await navigator.clipboard.write([item]);
+    }
+
+    function downloadBlob(blob, filename = "code.png") {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    // Events
+    ["input", "change"].forEach(evt => {
+      els.lang.addEventListener(evt, renderPreview);
+      els.fontSize.addEventListener(evt, renderPreview);
+      els.padX.addEventListener(evt, renderPreview);
+      els.padY.addEventListener(evt, renderPreview);
+      els.radius.addEventListener(evt, renderPreview);
+      els.code.addEventListener(evt, renderPreview);
+    });
+
+    els.clearBtn.addEventListener("click", () => {
+      els.code.value = "";
+      renderPreview();
+      els.code.focus();
+      setStatus("", "Cleared.");
+    });
+
+    els.copyBtn.addEventListener("click", async () => {
+      try {
+        setStatus("busy", "Rendering PNG…");
+        els.copyBtn.disabled = true;
+        els.downloadBtn.disabled = true;
+
+        const blob = await pillToPngBlob();
+
+        setStatus("busy", "Copying to clipboard…");
+        await copyImageToClipboard(blob);
+
+        setStatus("ok", "Copied. Paste anywhere (Ctrl+V).");
+      } catch (e) {
+        setStatus("bad", (e && e.message) ? e.message : "Copy failed. Use Download PNG.");
+      } finally {
+        els.copyBtn.disabled = false;
+        els.downloadBtn.disabled = false;
+      }
+    });
+
+    els.downloadBtn.addEventListener("click", async () => {
+      try {
+        setStatus("busy", "Rendering PNG…");
+        els.copyBtn.disabled = true;
+        els.downloadBtn.disabled = true;
+
+        const blob = await pillToPngBlob();
+        downloadBlob(blob, "code.png");
+        setStatus("ok", "Downloaded code.png");
+      } catch (e) {
+        setStatus("bad", (e && e.message) ? e.message : "Download failed.");
+      } finally {
+        els.copyBtn.disabled = false;
+        els.downloadBtn.disabled = false;
+      }
+    });
+
+    // Init
+    renderPreview();
+    setStatus("", "Ready.");
+  </script>
+</body>
+</html>

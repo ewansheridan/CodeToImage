@@ -205,6 +205,16 @@
       width: fit-content;
       max-width: max-content;
     }
+      
+      
+      
+    #capture{
+      display: inline-block;
+      padding: 0;
+      background: transparent;   /* will be set by JS when corners not transparent */
+      border-radius: 0 !important; /* IMPORTANT: keep the PNG square */
+    }
+
 
 
     /* Make highlight.js not add its own background */
@@ -278,6 +288,21 @@
             <option value="dark">Dark</option>
           </select>
         </div>
+          
+        <div>
+          <label for="cornerTransparent">Transparent Corners?</label>
+          <select id="cornerTransparent">
+            <option value="true" selected>On</option>
+            <option value="false">Off</option>
+          </select>
+        </div>
+
+        <div id="cornerColorWrap">
+          <label for="cornerColor">Corner colour</label>
+          <input id="cornerColor" type="color" value="#ffffff">
+        </div>
+
+          
 
       </div>
 
@@ -293,9 +318,13 @@
       </div>
 
       <div class="render-wrap">
-        <div id="pill">
-          <code id="pillCode"></code>
+        
+        <div id="capture">
+          <div id="pill">
+            <code id="pillCode"></code>
+          </div>
         </div>
+          
       </div>
     </div>
   </div>
@@ -325,6 +354,12 @@
       status: document.getElementById("status"),
         
       theme: document.getElementById("theme"),
+        cornerColor: document.getElementById("cornerColor"),
+        cornerTransparent: document.getElementById("cornerTransparent"),
+        capture: document.getElementById("capture"),
+        cornerColorWrap: document.getElementById("cornerColorWrap"),
+        cornerColor: document.getElementById("cornerColor"),
+        cornerTransparent: document.getElementById("cornerTransparent"),
     };
       
     function applyOutputTheme() {
@@ -337,6 +372,22 @@
         document.documentElement.style.setProperty("--pill-fg", getComputedStyle(document.documentElement).getPropertyValue("--pill-fg-light"));
       }
     }
+      
+      
+    function applyCornerMode() {
+      const transparent = els.cornerTransparent.value === "true";
+
+      // Hide/show colour picker
+      els.cornerColorWrap.style.display = transparent ? "none" : "block";
+
+      // Corner colour is the wrapper bg
+      els.capture.style.background = transparent ? "transparent" : els.cornerColor.value;
+
+      // PNG must stay square
+      els.capture.style.borderRadius = "0px";
+    }
+
+
 
 
     function setStatus(kind, msg) {
@@ -366,6 +417,8 @@
     function renderPreview() {
       applyOutputTheme();
       applyPillStyle();
+      applyCornerMode();
+        
       const text = els.code.value ?? "";
       const mode = els.lang.value;
       const hljsLang = LANG_TO_HLJS[mode];
@@ -395,15 +448,18 @@
         els.pillCode.textContent = text;
       }
     }
-
+        
     async function pillToPngBlob() {
-      const blob = await htmlToImage.toBlob(els.pill, {
+      const blob = await htmlToImage.toBlob(els.capture, {
         pixelRatio: 2,
-        backgroundColor: null  // <-- this is the correct “transparent outside” setting
+        backgroundColor: null
       });
       if (!blob) throw new Error("Failed to generate PNG.");
       return blob;
     }
+
+
+
 
 
 
@@ -436,6 +492,10 @@
       els.radius.addEventListener(evt, renderPreview);
       els.code.addEventListener(evt, renderPreview);
       els.theme.addEventListener("change", renderPreview);
+        els.cornerColor.addEventListener("input", renderPreview);
+        els.cornerTransparent.addEventListener("change", renderPreview);    
+        
+
     });
 
     els.clearBtn.addEventListener("click", () => {
